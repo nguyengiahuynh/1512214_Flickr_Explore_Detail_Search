@@ -1,0 +1,10 @@
+.tag{
+    margin: 2px;
+    background-color: #c1c1c1;
+    border: none;
+    border-radius: 3px;
+}
+
+.tag:hover{
+    background-color: #7b7b7b;
+}
