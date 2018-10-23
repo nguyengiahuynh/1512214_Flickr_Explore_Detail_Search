@@ -9,8 +9,16 @@ Route,
 Link
 } from 'react-router-dom';
 import './App.css';
+import {connect} from 'react-redux';
+import {addPhotos, clearPhotos, updateTags} from './actions/index';
 
-
+const mapStateToProps = ({addPhotosReducer, updateTagsReducer}) => {
+    return {
+        photos: addPhotosReducer.photos,
+        nextPage: addPhotosReducer.nextPage,
+        tag: updateTagsReducer.tag
+    }
+}
 
 const config = {
   containerWidth: 1150,
@@ -40,18 +48,17 @@ class Search extends Component {
   }
 
   loadMore(){
+    const {dispatch} = this.props
     this.setState({
       isLoading: true
     })
-    axios.get(`https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=dddc7f158a499bb13fbc802f62c27dc0&tags=${this.props.match.params.tag}&format=json&nojsoncallback=1&per_page=20&page=${this.state.nextPage}&extras=tags%2Curl_m%2Cowner_name`)      .then(res => {
+    axios.get(`https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=dddc7f158a499bb13fbc802f62c27dc0&tags=${this.props.match.params.tag}&format=json&nojsoncallback=1&per_page=20&page=${this.props.nextPage}&extras=tags%2Curl_m%2Cowner_name`).then(res => {
+          dispatch(addPhotos({photos: res.data.photos.photo, nextPage: this.props.nextPage + 1}))
+          dispatch(updateTags(this.props.match.params.tag))
           this.setState({
-            pictures: [...this.state.pictures,...res.data.photos.photo],
-            nextPage: this.state.nextPage + 1 > res.totalPages ? false : this.state.nextPage + 1
-          }, () => {
-            this.setState({
-              geometry: justifiedLayout(this.editSizeImage(this.state.pictures), config),
-              isLoading: false
-            })
+            totalPages: res.totalPages,
+            isLoading: false,
+            geometry: justifiedLayout(this.editSizeImage(this.props.photos), config),
           });
         })
   }
@@ -74,9 +81,14 @@ class Search extends Component {
 
   handleSubmit(e){
     e.preventDefault();
-    const {history} = this.props
+    const {history, dispatch} = this.props
     if(this.state.search !== ''){
-      history.push(`/photo/tags/${this.state.search}`)
+      dispatch(clearPhotos())
+      dispatch(updateTags(this.state.search))
+      axios.get(`https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=dddc7f158a499bb13fbc802f62c27dc0&tags=${this.state.seach}&format=json&nojsoncallback=1&per_page=20&page=1&extras=tags%2Curl_m%2Cowner_name`).then((res) => {
+        dispatch(addPhotos({photos: res.data.photos.photo, nextPage: 2}))
+        history.push(`/photo/tags/${this.state.search}`)
+      })
     }
   }
 
@@ -86,26 +98,36 @@ class Search extends Component {
 
   componentDidMount() {
     window.addEventListener('scroll', this.handleOnScroll.bind(this));
-    axios.get(`https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=dddc7f158a499bb13fbc802f62c27dc0&tags=${this.props.match.params.tag}&format=json&nojsoncallback=1&per_page=20&page=${this.state.nextPage}&extras=tags%2Curl_m%2Cowner_name`)
+    const {dispatch} = this.props
+    axios.get(`https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=dddc7f158a499bb13fbc802f62c27dc0&tags=${this.props.match.params.tag}&format=json&nojsoncallback=1&per_page=20&page=${this.props.nextPage}&extras=tags%2Curl_m%2Cowner_name`)
       .then(res => {
-          this.setState({
-            pictures: res.data.photos.photo,
-            geometry: justifiedLayout(this.editSizeImage(res.data.photos.photo), config),
-            nextPage: this.state.nextPage + 1,
-          });
+          // this.setState({
+          //   pictures: res.data.photos.photo,
+          //   geometry: justifiedLayout(this.editSizeImage(res.data.photos.photo), config),
+          //   nextPage: this.state.nextPage + 1,
+          // });
+
+            dispatch(addPhotos({photos: res.data.photos.photo, nextPage: this.props.nextPage + 1}))
+            dispatch(updateTags(this.props.match.params.tag))
+            this.setState({
+              totalPages: res.totalPages,
+              isLoading: false,
+              geometry: justifiedLayout(this.editSizeImage(this.props.photos), config),
+            });
           })
   }
 
-  UNSAFE_componentWillReceiveProps(props){
-    this.setState({
-      pictures: [],
-      geometry: null,
-      nextPage: 1,
-      isLoading: false,
-      search: null
-    })
-    this.componentDidMount();
-  }
+  // UNSAFE_componentWillReceiveProps(props){
+  //   this.setState({
+  //     // pictures: [],
+  //     // geometry: null,
+  //     // nextPage: 1,
+  //     // isLoading: false,
+  //     // search: null
+  //     geometry: justifiedLayout(this.editSizeImage(this.props.photos), config),
+  //   })
+  //   //this.componentDidMount();
+  // }
 
   render() {
     return (
@@ -131,9 +153,9 @@ class Search extends Component {
     <br/>
     <br/>
     <br/>
-    <h3 className="text-center">Tags > {this.props.match.params.tag}</h3>
+    <h3 className="text-center">Tags > {this.props.tag}</h3>
      <div className="container" style={{position: 'relative'}}>
-     {!!this.state.pictures.length && this.state.pictures.map((item, key) => {
+     {!!this.props.photos.length && this.state.geometry && this.props.photos.map((item, key) => {
         return(
           <Link to={'/photo/' + item.id}>
           <div className="photo-view" key={key} style={this.state.geometry.boxes[key]}>
@@ -159,4 +181,4 @@ class Search extends Component {
     )
   }
 }
-export default Search;
+export default connect(mapStateToProps)(Search);

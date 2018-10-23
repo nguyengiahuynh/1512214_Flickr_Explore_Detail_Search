@@ -9,6 +9,12 @@ Route,
 Link
 } from 'react-router-dom';
 import './App.css';
+import {addPhotos, clearPhotos, updateTags} from './actions/index';
+import {connect} from 'react-redux';
+
+const mapStateToProps = (state) => {
+    return {}
+} 
 
 class Photo extends Component {
   constructor(){
@@ -29,10 +35,32 @@ class Photo extends Component {
 
   handleSubmit(e){
     e.preventDefault();
-    const {history} = this.props
+    const {history, dispatch} = this.props
     if(this.state.search !== ''){
-      history.push(`/photo/tags/${this.state.search}`)
+      dispatch(clearPhotos())
+      dispatch(updateTags(this.state.search))
+      axios.get(`https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=dddc7f158a499bb13fbc802f62c27dc0&tags=${this.state.search}&format=json&nojsoncallback=1&per_page=20&page=1&extras=tags%2Curl_m%2Cowner_name`).then((data) => {
+        if(data.length){
+          dispatch(addPhotos({photos: data, nextPage: 2}))
+        }
+        history.push(`/photo/tags/${this.state.search}`)
+      })
     }
+  }
+
+  handleSearchTag(tag){
+    const {history, dispatch} = this.props
+    dispatch(clearPhotos())
+    dispatch(updateTags(tag))
+    axios.get(`https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=dddc7f158a499bb13fbc802f62c27dc0&tags=${tag}&format=json&nojsoncallback=1&per_page=20&page=1&extras=tags%2Curl_m%2Cowner_name`).then((data) => {
+      if(data.length){
+        dispatch(addPhotos({photos: data, nextPage: 2}))
+      }
+      history.push({
+        pathname: `/photo/tags/${tag}`,
+        state: {search: tag}
+      })
+    })
   }
 
   componentDidMount() {
@@ -96,7 +124,11 @@ class Photo extends Component {
                   Tags: 
                 {this.state.tags.map((item, key) => {
                   return (
-                        <Link to={'/photo/tags/' + item.raw} className="tag">{item.raw}</Link>
+                    <li className="tag" key={item.id} onClick={this.handleSearchTag.bind(this, item.raw)}>
+                      <a>
+                         <span>{item.raw}</span>
+                      </a>
+                    </li>
                   )
                 })
                 }
@@ -108,4 +140,4 @@ class Photo extends Component {
     )
   }
 }
-export default Photo;
+export default connect(mapStateToProps)(Photo);

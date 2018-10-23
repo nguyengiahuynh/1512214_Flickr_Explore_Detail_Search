@@ -9,7 +9,13 @@ Route,
 Link
 } from 'react-router-dom';
 import './App.css';
+import {addPhotos, clearPhotos, updateTags} from './actions/index';
+import {connect} from 'react-redux';
 
+
+const mapStateToProps = (state) => {
+    return {}
+} 
 
 
 const config = {
@@ -41,9 +47,16 @@ class Explore extends Component {
 
   handleSubmit(e){
     e.preventDefault();
-    const {history} = this.props
+    const {history, dispatch} = this.props
     if(this.state.search !== ''){
-      history.push(`/photo/tags/${this.state.search}`)
+      dispatch(clearPhotos())
+      dispatch(updateTags(this.state.search))
+      axios.get(`https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=dddc7f158a499bb13fbc802f62c27dc0&tags=${this.state.search}&format=json&nojsoncallback=1&per_page=20&page=1&extras=tags%2Curl_m%2Cowner_name`).then((res) => {
+        if(res.length){
+          dispatch(addPhotos({photos: res.data.photos.photo, nextPage: 2}))
+        }
+        history.push(`/photo/tags/${this.state.search}`)
+      })
     }
   }
 
@@ -89,6 +102,7 @@ class Explore extends Component {
     window.addEventListener('scroll', this.handleOnScroll.bind(this));
     axios.get(`https://api.flickr.com/services/rest/?method=flickr.interestingness.getList&api_key=dddc7f158a499bb13fbc802f62c27dc0&format=json&nojsoncallback=1&per_page=20&page=${this.state.nextPage}&extras=tags%2Curl_m%2Cowner_name`)
       .then(res => {
+          console.log(res);
           this.setState({
             pictures: res.data.photos.photo,
             geometry: justifiedLayout(this.editSizeImage(res.data.photos.photo), config),
@@ -148,4 +162,4 @@ class Explore extends Component {
     )
   }
 }
-export default Explore;
+export default connect(mapStateToProps)(Explore);
